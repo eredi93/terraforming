@@ -9,10 +9,12 @@ rescue NameError => e
 end
 
 require "aws-sdk-core"
+require 'dogapi'
 require "erb"
 require "json"
 require "thor"
 require "zlib"
+require "securerandom"
 
 require "terraforming/util"
 require "terraforming/version"
@@ -20,6 +22,7 @@ require "terraforming/version"
 require "terraforming/cli"
 require "terraforming/resource/auto_scaling_group"
 require "terraforming/resource/cloud_watch_alarm"
+require "terraforming/resource/datadog_monitor"
 require "terraforming/resource/db_parameter_group"
 require "terraforming/resource/db_security_group"
 require "terraforming/resource/db_subnet_group"
