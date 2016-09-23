@@ -3,16 +3,16 @@ module Terraforming
     class CloudWatchAlarm
       include Terraforming::Util
 
-      def self.tf(client: Aws::CloudWatch::Client.new)
-        self.new(client).tf
-      end
-
-      def self.tfstate(client: Aws::CloudWatch::Client.new)
-        self.new(client).tfstate
+      def self.execute(client: Aws::CloudWatch::Client.new)
+        self.new(client).execute
       end
 
       def initialize(client)
         @client = client
+      end
+
+      def execute
+        { tf: tf, tfstate: tfstate }
       end
 
       def tf
@@ -21,7 +21,7 @@ module Terraforming
 
       def tfstate
         alarms.inject({}) do |resources, alarm|
-          resources["aws_cloudwatch_metric_alarm.#{module_name_of(alarm)}"] = {
+          resources["aws_cloudwatch_metric_alarm.#{alarm.moduled_name}"] = {
             "type" => "aws_cloudwatch_metric_alarm",
             "primary" => {
               "id" => alarm.alarm_name,
@@ -53,11 +53,18 @@ module Terraforming
       end
 
       def alarms
-        @client.describe_alarms.map(&:metric_alarms).flatten
+        @alarms ||= begin
+          response = @client.describe_alarms.map(&:metric_alarms).flatten
+          response.each do |alarm|
+            def alarm.moduled_name
+              "#{self.alarm_name.gsub(/[^a-zA-Z0-9_-]/, "_")}_#{SecureRandom.hex(4)}".gsub(/_+/, '_')
+            end
+          end
+        end
       end
 
-      def module_name_of(alarm)
-        normalize_module_name(alarm.alarm_name)
+      def module_name_of(alarm_name)
+        normalize_module_name(alarm_name)
       end
 
       def sanitize(argument)

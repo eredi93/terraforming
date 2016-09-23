@@ -209,27 +209,32 @@ module Terraforming
 
     def execute(klass, options)
       configure_aws(options)
-      result = options[:tfstate] ? tfstate(klass, options[:merge]) : tf(klass)
+      class_name = klass.name
+      response = klass.execute 
 
-      if options[:tfstate] && options[:merge] && options[:overwrite]
-        open(options[:merge], "w+") do |f|
-          f.write(result)
-          f.flush
-        end
-      else
-        puts result
+      tf(response[:tf], class_name)
+      tfstate(response[:tfstate], options[:merge])
+    end
+
+    def tf(generated_tf, class_name)
+      tf_file_name = "#{class_name.split('::')[-1].downcase}_alarms.tf"
+      open(tf_file_name, "w") do |f|
+        f.write(generated_tf)
       end
     end
 
-    def tf(klass)
-      klass.tf
-    end
+    def tfstate(generated_tfstate, tfstate_path)
+      tfstate_path = "terraform.tfstate" if tfstate_path.nil?
 
-    def tfstate(klass, tfstate_path)
       tfstate = tfstate_path ? JSON.parse(open(tfstate_path).read) : tfstate_skeleton
       tfstate["serial"] = tfstate["serial"] + 1
-      tfstate["modules"][0]["resources"] = tfstate["modules"][0]["resources"].merge(klass.tfstate)
-      JSON.pretty_generate(tfstate)
+      tfstate["modules"][0]["resources"] = tfstate["modules"][0]["resources"].merge(generated_tfstate)
+      state_file = JSON.pretty_generate(tfstate)
+
+      open(tfstate_path, "w+") do |f|
+        f.write(state_file)
+        f.flush
+      end
     end
 
     def tfstate_skeleton
